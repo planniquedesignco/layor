@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LAYOR — Online Order</title>
+<meta name="theme-color" content="#7a6556" />
+<style>
+:root{
+  --brown:#7a6556;
+  --brown-2:#8b7566;
+  --brown-dark:#4f4037;
+  --ivory:#f7f1e8;
+  --cream:#efe4d7;
+  --paper:#fffaf4;
+  --ink:#2b2622;
+  --muted:#776f69;
+  --line:rgba(70,52,42,.14);
+  --green:#2f7d57;
+  --danger:#b35d55;
+  --shadow:0 18px 60px rgba(51,38,30,.12);
+  --radius:28px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--ivory);
+  color:var(--ink);
+  overflow-x:hidden;
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+a{text-decoration:none;color:inherit}
+img{display:block;max-width:100%}
+
+/* ---------- Loader ---------- */
+#loader{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--brown);
+  display:grid;place-items:center;
+  transition:opacity .7s ease,visibility .7s ease;
+}
+#loader.hide{opacity:0;visibility:hidden;pointer-events:none}
+.loader-inner{text-align:center;color:#f4e9dc;position:relative}
+.loader-mark{
+  width:110px;height:110px;margin:0 auto 24px;position:relative;
+  border:1.5px solid rgba(255,244,232,.22);border-radius:50%;
+  animation:markPulse 1.8s ease-in-out infinite;
+}
+.loader-mark:before,.loader-mark:after{
+  content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  border-radius:999px;background:#f4e9dc;
+}
+.loader-mark:before{width:58px;height:1.5px;animation:drawLine 1.2s ease both}
+.loader-mark:after{width:1.5px;height:58px;opacity:.45;animation:drawLine 1.2s .15s ease both}
+.loader-script{position:absolute;inset:0;display:grid;place-items:center;font-family:Georgia,serif;font-style:italic;font-size:54px;font-weight:400;opacity:0;animation:scriptIn 1.2s .35s ease forwards}
+.loader-word{font-family:Georgia,serif;font-size:29px;letter-spacing:.55em;margin-left:.55em;opacity:0;animation:fadeUp .9s .85s ease forwards}
+.loader-sub{font-family:Georgia,serif;font-size:14px;letter-spacing:.12em;margin-top:12px;opacity:0;animation:fadeUp .9s 1.1s ease forwards}
+.loader-rule{width:0;height:1px;background:rgba(255,244,232,.55);margin:28px auto 0;animation:ruleGrow 1s 1.25s ease forwards}
+@keyframes markPulse{50%{transform:scale(1.035)}}
+@keyframes drawLine{from{transform:translate(-50%,-50%) scaleX(0)}to{transform:translate(-50%,-50%) scaleX(1)}}
+@keyframes scriptIn{from{opacity:0;transform:scale(.86) rotate(-6deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes ruleGrow{to{width:180px}}
+
+/* ---------- App shell ---------- */
+.site-header{
+  position:sticky;top:0;z-index:1000;
+  background:rgba(247,241,232,.86);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line)
+}
+.header-inner{max-width:1280px;margin:auto;height:76px;padding:0 28px;display:flex;align-items:center;gap:26px}
+.brand{display:flex;align-items:center;gap:12px;min-width:180px}
+.brand img{width:112px;height:34px;object-fit:contain}
+.brand-fallback{font-family:Georgia,serif;letter-spacing:.42em;font-size:22px;margin-left:.42em}
+.desktop-nav{display:flex;align-items:center;gap:26px;margin-left:auto}
+.nav-btn{background:none;border:none;color:var(--ink);padding:12px 4px;font-size:14px;letter-spacing:.03em;position:relative}
+.nav-btn:after{content:"";position:absolute;left:4px;right:4px;bottom:5px;height:1px;background:var(--ink);transform:scaleX(0);transform-origin:left;transition:.25s}
+.nav-btn:hover:after,.nav-btn.active:after{transform:scaleX(1)}
+.header-actions{display:flex;gap:10px;align-items:center}
+.icon-btn{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.55);display:grid;place-items:center;position:relative}
+.badge{position:absolute;right:-3px;top:-3px;min-width:20px;height:20px;border-radius:99px;background:var(--brown-dark);color:white;font-size:11px;display:grid;place-items:center;padding:0 5px}
+
+.page{display:none;min-height:calc(100vh - 76px);animation:pageIn .45s ease}
+.page.active{display:block}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.container{max-width:1280px;margin:auto;padding:0 28px}
+.section{padding:88px 0}
+.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--brown)}
+.section-title{font-family:Georgia,serif;font-weight:500;font-size:clamp(34px,4vw,62px);line-height:1.04;margin:10px 0 16px}
+.section-copy{max-width:650px;color:var(--muted);line-height:1.75;font-size:17px}
+
+.btn{border:none;border-radius:999px;padding:15px 22px;display:inline-flex;align-items:center;justify-content:center;gap:10px;transition:.25s ease}
+.btn:hover{transform:translateY(-2px)}
+.btn-primary{background:var(--brown-dark);color:white;box-shadow:0 10px 30px rgba(67,49,39,.2)}
+.btn-secondary{background:transparent;border:1px solid rgba(67,49,39,.25);color:var(--ink)}
+.btn-light{background:#fff;color:var(--ink)}
+.btn:disabled{opacity:.38;cursor:not-allowed;transform:none}
+
+/* ---------- Home ---------- */
+.hero{min-height:690px;display:grid;grid-template-columns:1.02fr .98fr;overflow:hidden;background:linear-gradient(110deg,#f7f1e8 0%,#f7f1e8 52%,#7b6657 52%,#7b6657 100%)}
+.hero-copy{display:flex;align-items:center;padding:80px max(28px,calc((100vw - 1280px)/2 + 28px))}
+.hero-copy-inner{max-width:610px}
+.hero h1{font-family:Georgia,serif;font-weight:500;font-size:clamp(52px,6vw,88px);line-height:.98;margin:14px 0 24px}
+.hero p{font-size:18px;line-height:1.7;color:var(--muted);max-width:560px}
+.hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.hero-visual{position:relative;display:grid;place-items:center;min-height:690px;overflow:hidden;color:#f7efe5}
+.hero-visual:before,.hero-visual:after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.22)}
+.hero-visual:before{width:560px;height:560px}
+.hero-visual:after{width:390px;height:390px}
+.hero-monogram{font-family:Georgia,serif;font-size:150px;font-style:italic;position:relative;z-index:2;opacity:.94}
+.hero-caption{position:absolute;bottom:60px;left:60px;right:60px;display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.28);padding-top:18px;font-size:12px;letter-spacing:.15em;text-transform:uppercase}
+
+.category-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:-44px;position:relative;z-index:3}
+.category-card{background:var(--paper);border:1px solid var(--line);padding:24px;border-radius:22px;box-shadow:var(--shadow);transition:.3s}
+.category-card:hover{transform:translateY(-6px)}
+.category-icon{width:54px;height:54px;border-radius:50%;background:var(--cream);display:grid;place-items:center;font-family:Georgia,serif;margin-bottom:18px}
+.category-card strong{display:block;font-family:Georgia,serif;font-size:20px;font-weight:500}
+.category-card span{color:var(--muted);font-size:13px;display:block;margin-top:6px}
+
+.product-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.product-card{background:rgba(255,255,255,.58);border:1px solid var(--line);border-radius:24px;overflow:hidden;transition:.28s;position:relative}
+.product-card:hover{transform:translateY(-5px);box-shadow:var(--shadow)}
+.product-media{aspect-ratio:1/1;background:linear-gradient(145deg,#eee6dc,#fdfaf6);position:relative;overflow:hidden}
+.product-media img{width:100%;height:100%;object-fit:cover}
+.product-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#8f8074;font-family:Georgia,serif;font-size:44px;background:radial-gradient(circle at 50% 36%,rgba(255,255,255,.96),rgba(232,219,205,.82))}
+.product-card-body{padding:18px}
+.product-cat{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--brown)}
+.product-name{font-family:Georgia,serif;font-size:22px;line-height:1.15;margin:7px 0 8px}
+.product-desc{color:var(--muted);font-size:13px;line-height:1.5;min-height:39px}
+.product-foot{display:flex;align-items:center;justify-content:space-between;margin-top:18px}
+.price{font-weight:650}
+.add-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--ink);color:white;font-size:20px}
+.coming{position:absolute;top:14px;left:14px;background:rgba(43,38,34,.86);color:#fff;padding:8px 10px;border-radius:99px;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+
+.split-promo{display:grid;grid-template-columns:1fr 1fr;border-radius:32px;overflow:hidden;background:var(--brown);color:#fff}
+.promo-copy{padding:66px}
+.promo-copy h3{font-family:Georgia,serif;font-size:52px;font-weight:500;margin:8px 0 18px}
+.bundle-list{display:grid;gap:12px;margin:30px 0}
+.bundle-row{display:flex;justify-content:space-between;padding:16px 0;border-top:1px solid rgba(255,255,255,.22)}
+.bundle-row:last-child{border-bottom:1px solid rgba(255,255,255,.22)}
+.promo-art{min-height:520px;background:#8b7566;position:relative;display:grid;place-items:center;overflow:hidden}
+.promo-art:before{content:"";width:330px;height:330px;border-radius:50%;border:1px solid rgba(255,255,255,.33);position:absolute}
+.promo-art .art-word{font-family:Georgia,serif;font-size:92px;font-style:italic;position:relative}
+
+.info-band{display:grid;grid-template-columns:1.2fr .8fr;gap:50px;align-items:start}
+.hours-card,.location-card{background:var(--paper);border:1px solid var(--line);border-radius:24px;padding:30px}
+.hours-grid{display:grid;grid-template-columns:1fr auto;gap:11px 20px;margin-top:18px;color:var(--muted)}
+.hours-grid strong{color:var(--green)}
+
+/* ---------- Shop ---------- */
+.shop-hero{padding:70px 0 28px}
+.shop-toolbar{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin:28px 0 34px}
+.filter-row{display:flex;gap:10px;flex-wrap:wrap}
+.filter-chip{border:1px solid var(--line);background:rgba(255,255,255,.55);padding:11px 16px;border-radius:999px}
+.filter-chip.active{background:var(--ink);color:white}
+.search{min-width:280px;border:1px solid var(--line);background:rgba(255,255,255,.64);border-radius:999px;padding:12px 18px;outline:none}
+
+/* ---------- Product page ---------- */
+.product-detail{display:grid;grid-template-columns:1.05fr .95fr;gap:70px;padding:62px 0 90px}
+.gallery-wrap{position:sticky;top:100px;align-self:start}
+.gallery-stage{aspect-ratio:1/1;border-radius:28px;overflow:hidden;background:var(--paper);border:1px solid var(--line);position:relative;touch-action:pan-y}
+.gallery-stage img{width:100%;height:100%;object-fit:cover}
+.gallery-fallback{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(145deg,#f5ede3,#e4d7ca);font-family:Georgia,serif;font-size:80px;color:var(--brown)}
+.gallery-arrow{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.86);box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:2}
+.gallery-prev{left:16px}.gallery-next{right:16px}
+.gallery-dots{display:flex;justify-content:center;gap:7px;margin-top:14px}
+.gallery-dot{width:7px;height:7px;border-radius:50%;border:none;background:#cbbcaf;padding:0}
+.gallery-dot.active{background:var(--brown-dark);transform:scale(1.3)}
+.product-info .category-label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--brown)}
+.product-info h2{font-family:Georgia,serif;font-size:clamp(40px,5vw,66px);font-weight:500;line-height:1.02;margin:14px 0}
+.product-info .detail-price{font-size:26px;margin:20px 0}
+.product-info .detail-desc{font-size:16px;line-height:1.8;color:var(--muted)}
+.selector{margin-top:28px;padding-top:24px;border-top:1px solid var(--line)}
+.selector label{display:block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px}
+.qty{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.qty button{width:42px;height:42px;border:none;background:transparent}.qty span{min-width:46px;display:grid;place-items:center}
+.detail-actions{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+.detail-actions .btn{min-width:180px}
+
+/* ---------- Mix & Match ---------- */
+.bundle-hero{padding:80px 0 40px;text-align:center;background:var(--brown);color:white}
+.bundle-hero .section-copy{color:rgba(255,255,255,.72);margin:0 auto}
+.bundle-options{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:40px 0}
+.bundle-option{background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:24px;padding:28px;position:relative}
+.bundle-option.popular{outline:2px solid var(--brown)}
+.ribbon{position:absolute;top:-12px;left:20px;background:var(--brown-dark);color:white;border-radius:99px;padding:7px 10px;font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.bundle-option h3{font-family:Georgia,serif;font-size:27px;font-weight:500;margin:4px 0 8px}
+.bundle-builder{display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:start}
+.bundle-products{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.bundle-mini{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;display:grid;grid-template-columns:80px 1fr auto;gap:14px;align-items:center}
+.bundle-mini-thumb{width:80px;height:80px;border-radius:14px;background:var(--cream);overflow:hidden;display:grid;place-items:center;font-family:Georgia,serif}
+.bundle-mini-thumb img{width:100%;height:100%;object-fit:cover}
+.bundle-summary{position:sticky;top:100px;background:var(--paper);border:1px solid var(--line);border-radius:24px;padding:28px}
+.summary-line{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}
+
+/* ---------- Cart ---------- */
+.cart-layout{display:grid;grid-template-columns:1.25fr .75fr;gap:30px;padding:70px 0}
+.cart-list{display:grid;gap:12px}
+.cart-item{display:grid;grid-template-columns:110px 1fr auto;gap:18px;background:rgba(255,255,255,.68);border:1px solid var(--line);border-radius:22px;padding:14px;align-items:center}
+.cart-thumb{width:110px;height:110px;border-radius:16px;overflow:hidden;background:var(--cream);display:grid;place-items:center;font-family:Georgia,serif;font-size:34px}
+.cart-thumb img{width:100%;height:100%;object-fit:cover}
+.cart-meta h4{font-family:Georgia,serif;font-size:22px;font-weight:500;margin:0 0 8px}
+.cart-meta small{color:var(--muted)}
+.remove-link{border:none;background:none;color:var(--danger);padding:8px 0;font-size:12px}
+.order-summary{background:var(--paper);border:1px solid var(--line);border-radius:24px;padding:28px;position:sticky;top:100px}
+.summary-total{display:flex;justify-content:space-between;font-size:22px;font-weight:700;padding:20px 0}
+.field{margin:14px 0}
+.field label{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;color:var(--muted)}
+.field input,.field textarea,.field select{width:100%;border:1px solid var(--line);background:#fff;border-radius:14px;padding:14px 15px;outline:none}
+
+/* ---------- Checkout ---------- */
+.checkout-layout{display:grid;grid-template-columns:1fr .8fr;gap:30px;padding:60px 0 90px}
+.checkout-card{background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:24px;padding:28px;margin-bottom:18px}
+.checkout-card h3{font-family:Georgia,serif;font-size:28px;font-weight:500;margin:0 0 20px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.payment-box{display:grid;grid-template-columns:1fr 220px;gap:24px;align-items:center}
+.qr-placeholder{aspect-ratio:1/1;border:1px dashed rgba(60,45,35,.28);border-radius:18px;background:white;display:grid;place-items:center;text-align:center;padding:18px;color:var(--muted)}
+.qr-placeholder img{width:100%;height:100%;object-fit:contain}
+.upload{border:1px dashed rgba(60,45,35,.28);border-radius:16px;padding:18px;text-align:center;background:rgba(255,255,255,.55)}
+
+/* ---------- Account ---------- */
+.account-hero{padding:66px 0;background:var(--brown);color:white}
+.account-grid{display:grid;grid-template-columns:.7fr 1.3fr;gap:28px;padding:50px 0 90px}
+.profile-card,.account-panel{background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:24px;padding:28px}
+.avatar{width:70px;height:70px;border-radius:50%;background:var(--cream);display:grid;place-items:center;font-family:Georgia,serif;font-size:28px}
+.points-box{background:var(--brown-dark);color:white;border-radius:20px;padding:22px;margin-top:22px}
+.points-box strong{display:block;font-family:Georgia,serif;font-size:36px}
+.tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 14px}.tab.active{background:var(--ink);color:white}
+.voucher-card{border:1px solid var(--line);border-radius:18px;padding:18px;margin:10px 0;display:flex;justify-content:space-between;gap:20px;align-items:center}
+.order-card{border:1px solid var(--line);border-radius:18px;padding:18px;margin:10px 0}
+.status{display:inline-flex;padding:7px 10px;border-radius:999px;background:#e8f2ec;color:var(--green);font-size:12px}
+
+/* ---------- Footer / mobile nav / toast ---------- */
+footer{background:#2d2723;color:rgba(255,255,255,.8);padding:56px 0 90px}
+.footer-grid{display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:30px}
+.footer-brand{font-family:Georgia,serif;font-size:27px;letter-spacing:.4em;margin-left:.4em;color:white}
+.footer-title{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:white;margin-bottom:14px}
+.footer-links{display:grid;gap:10px;color:rgba(255,255,255,.68);font-size:14px}
+.mobile-nav{display:none}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--ink);color:white;padding:13px 18px;border-radius:999px;z-index:3000;opacity:0;pointer-events:none;transition:.28s;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.empty-state{text-align:center;padding:70px 20px;color:var(--muted)}
+
+@media(max-width:980px){
+  .desktop-nav{display:none}
+  .hero{grid-template-columns:1fr;background:var(--ivory)}
+  .hero-copy{padding:70px 28px 42px}.hero-visual{min-height:420px;background:var(--brown)}
+  .hero-caption{left:28px;right:28px;bottom:28px}
+  .category-strip{grid-template-columns:repeat(2,1fr);margin-top:24px}
+  .product-grid{grid-template-columns:repeat(2,1fr)}
+  .split-promo,.info-band,.product-detail,.bundle-builder,.cart-layout,.checkout-layout,.account-grid{grid-template-columns:1fr}
+  .bundle-options{grid-template-columns:1fr}
+  .gallery-wrap,.bundle-summary,.order-summary{position:static}
+  .bundle-products{grid-template-columns:1fr}
+  .footer-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:700px){
+  body{padding-bottom:74px}
+  .header-inner{height:66px;padding:0 16px}.brand{min-width:0}.brand img{width:94px}.brand-fallback{font-size:18px}
+  .header-actions .icon-btn:first-child{display:none}
+  .container{padding:0 16px}.section{padding:64px 0}
+  .hero{min-height:auto}.hero-copy{padding:50px 18px 36px}.hero h1{font-size:52px}.hero p{font-size:16px}.hero-visual{min-height:360px}.hero-monogram{font-size:110px}
+  .category-strip{grid-template-columns:1fr 1fr;gap:10px}.category-card{padding:18px}.category-icon{width:44px;height:44px}
+  .product-grid{grid-template-columns:1fr 1fr;gap:12px}.product-card-body{padding:13px}.product-name{font-size:17px}.product-desc{display:none}.product-foot{margin-top:10px}.add-btn{width:36px;height:36px}
+  .promo-copy{padding:36px 22px}.promo-copy h3{font-size:40px}.promo-art{min-height:320px}.promo-art .art-word{font-size:68px}
+  .shop-hero{padding:48px 0 12px}.search{width:100%;min-width:0}.shop-toolbar{align-items:stretch}.filter-row{overflow:auto;flex-wrap:nowrap;padding-bottom:4px}.filter-chip{white-space:nowrap}
+  .product-detail{gap:30px;padding:28px 0 80px}.product-info h2{font-size:43px}.gallery-arrow{display:none}
+  .bundle-products{grid-template-columns:1fr}.bundle-mini{grid-template-columns:66px 1fr auto}.bundle-mini-thumb{width:66px;height:66px}
+  .cart-item{grid-template-columns:82px 1fr}.cart-thumb{width:82px;height:82px}.cart-item>div:last-child{grid-column:2}.cart-layout{padding:40px 0}
+  .two-col,.payment-box{grid-template-columns:1fr}.qr-placeholder{max-width:240px}
+  .account-grid{padding:34px 0 70px}.footer-grid{grid-template-columns:1fr}
+  .mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(5,1fr);left:0;right:0;bottom:0;height:68px;background:rgba(255,250,244,.96);backdrop-filter:blur(16px);border-top:1px solid var(--line);z-index:1500;padding-bottom:env(safe-area-inset-bottom)}
+  .mobile-nav button{border:none;background:none;font-size:10px;display:grid;place-items:center;gap:3px;padding:7px 2px;color:var(--muted)}
+  .mobile-nav button span:first-child{font-size:20px;line-height:1}.mobile-nav button.active{color:var(--ink)}
+  footer{padding-bottom:100px}
+}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-inner">
+    <div class="loader-mark"><div class="loader-script">L</div></div>
+    <div class="loader-word">LAYOR</div>
+    <div class="loader-sub">Softly layered</div>
+    <div class="loader-rule"></div>
+  </div>
+</div>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="#" onclick="goPage('home');return false;">
+      <img src="assets/logo/layor-logo.png" alt="LAYOR" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="brand-fallback" style="display:none">LAYOR</span>
+    </a>
+    <nav class="desktop-nav">
+      <button class="nav-btn active" data-page="home" onclick="goPage('home')">Home</button>
+      <button class="nav-btn" data-page="shop" onclick="goPage('shop')">Shop</button>
+      <button class="nav-btn" data-page="mix" onclick="goPage('mix')">Mix & Match</button>
+      <button class="nav-btn" data-page="account" onclick="goPage('account')">Rewards</button>
+    </nav>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="goPage('account')" aria-label="Account">◯</button>
+      <button class="icon-btn" onclick="goPage('cart')" aria-label="Cart">⌑<span class="badge" id="cartBadge">0</span></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- HOME -->
+  <section id="page-home" class="page active">
+    <div class="hero">
+      <div class="hero-copy">
+        <div class="hero-copy-inner">
+          <div class="eyebrow">LAYOR DESSERT · KAJANG</div>
+          <h1>Softly layered.<br>Made to be savoured.</h1>
+          <p>Contemporary desserts crafted in delicate layers — from matcha-forward favourites to rich durian creations.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" onclick="goPage('shop')">Order Online <span>→</span></button>
+            <button class="btn btn-secondary" onclick="goPage('mix')">Build a Bundle</button>
+          </div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-monogram">L</div>
+        <div class="hero-caption"><span>Worth slowing down for.</span><span>Kajang · Selangor</span></div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="category-strip">
+        <button class="category-card" onclick="shopCategory('Mini Mille Crepe')"><div class="category-icon">M</div><strong>Mini Mille Crepe</strong><span>Layered crepe favourites</span></button>
+        <button class="category-card" onclick="shopCategory('Mini Cakes')"><div class="category-icon">C</div><strong>Mini Cakes</strong><span>Small cakes, full flavour</span></button>
+        <button class="category-card" onclick="shopCategory('Mini Puff')"><div class="category-icon">P</div><strong>Mini Puff</strong><span>Coming soon</span></button>
+        <button class="category-card" onclick="goPage('mix')"><div class="category-icon">+</div><strong>Mix & Match</strong><span>Choose more, save more</span></button>
+      </div>
+
+      <div class="section">
+        <div class="eyebrow">Our favourites</div>
+        <h2 class="section-title">Made for your next craving.</h2>
+        <div class="product-grid" id="featuredGrid"></div>
+      </div>
+
+      <div class="section" style="padding-top:10px">
+        <div class="split-promo">
+          <div class="promo-copy">
+            <div class="eyebrow" style="color:#f0dfd1">Mix & Match</div>
+            <h3>Choose your favourites and save more.</h3>
+            <div class="bundle-list">
+              <div class="bundle-row"><span>Pair Bundle · Any 2 boxes</span><strong>Save RM4</strong></div>
+              <div class="bundle-row"><span>Sharing Bundle · Any 4 boxes</span><strong>Save RM8</strong></div>
+              <div class="bundle-row"><span>Gathering Bundle · Any 6 boxes</span><strong>Save RM15</strong></div>
+            </div>
+            <button class="btn btn-light" onclick="goPage('mix')">Build My Box →</button>
+          </div>
+          <div class="promo-art"><div class="art-word">L</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="info-band">
+          <div class="hours-card">
+            <div class="eyebrow">Visit us</div>
+            <h3 style="font-family:Georgia,serif;font-size:34px;font-weight:500;margin:10px 0 6px">Worth Slowing Down For.</h3>
+            <div class="hours-grid">
+              <strong>Monday</strong><strong>9:30 AM – 7:00 PM</strong>
+              <span>Tuesday</span><span>9:30 AM – 7:00 PM</span>
+              <span>Wednesday</span><span>9:30 AM – 7:00 PM</span>
+              <span>Thursday</span><span>9:30 AM – 7:00 PM</span>
+              <span>Friday</span><span>9:30 AM – 7:00 PM</span>
+              <span>Saturday</span><span>10:00 AM – 7:00 PM</span>
+              <span>Sunday</span><span>Closed</span>
+            </div>
+          </div>
+          <div class="location-card">
+            <div class="eyebrow">Location</div>
+            <p style="font-size:20px;line-height:1.55">10-G, Jalan Mahkota Residence 3,<br>Bandar Mahkota Cheras,<br>43200 Kajang, Selangor, Malaysia</p>
+            <p style="color:var(--green);font-weight:650">layordessert@gmail.com</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SHOP -->
+  <section id="page-shop" class="page">
+    <div class="container">
+      <div class="shop-hero">
+        <div class="eyebrow">Online menu</div>
+        <h1 class="section-title">Shop LAYOR</h1>
+        <p class="section-copy">Browse by collection, discover the current menu, and add your favourites to your bag.</p>
+      </div>
+      <div class="shop-toolbar">
+        <div class="filter-row" id="filterRow"></div>
+        <input class="search" id="searchInput" type="search" placeholder="Search desserts…" oninput="renderShop()">
+      </div>
+      <div class="product-grid" id="shopGrid"></div>
+      <div style="height:90px"></div>
+    </div>
+  </section>
+
+  <!-- PRODUCT -->
+  <section id="page-product" class="page">
+    <div class="container">
+      <div class="product-detail">
+        <div class="gallery-wrap">
+          <div class="gallery-stage" id="galleryStage">
+            <button class="gallery-arrow gallery-prev" id="galleryPrev" onclick="galleryMove(-1)">‹</button>
+            <button class="gallery-arrow gallery-next" id="galleryNext" onclick="galleryMove(1)">›</button>
+            <img id="galleryImage" alt="Product image" src="">
+            <div class="gallery-fallback" id="galleryFallback">L</div>
+          </div>
+          <div class="gallery-dots" id="galleryDots"></div>
+        </div>
+        <div class="product-info">
+          <button class="btn btn-secondary" style="padding:10px 14px;margin-bottom:24px" onclick="goPage('shop')">← Back to Shop</button>
+          <div class="category-label" id="detailCategory"></div>
+          <h2 id="detailName"></h2>
+          <div class="detail-price" id="detailPrice"></div>
+          <p class="detail-desc" id="detailDesc"></p>
+          <div class="selector">
+            <label>Quantity</label>
+            <div class="qty"><button onclick="changeDetailQty(-1)">−</button><span id="detailQty">1</span><button onclick="changeDetailQty(1)">+</button></div>
+          </div>
+          <div class="detail-actions">
+            <button class="btn btn-primary" id="detailAddBtn" onclick="addCurrentProduct()">Add to Bag</button>
+            <button class="btn btn-secondary" onclick="goPage('cart')">View Bag</button>
+          </div>
+          <div style="margin-top:34px;padding-top:24px;border-top:1px solid var(--line);display:grid;gap:12px;color:var(--muted);font-size:14px">
+            <div>✓ Prepared fresh in small batches</div>
+            <div>✓ Pickup ordering via website</div>
+            <div>✓ Points eligible on completed orders</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MIX & MATCH -->
+  <section id="page-mix" class="page">
+    <div class="bundle-hero">
+      <div class="container">
+        <div class="eyebrow" style="color:#f3e5d8">Bundle builder</div>
+        <h1 class="section-title">Mix & Match</h1>
+        <p class="section-copy">Choose your favourites and save more. Build a box in just a few taps.</p>
+      </div>
+    </div>
+    <div class="container">
+      <div class="bundle-options" id="bundleOptions"></div>
+      <div class="bundle-builder">
+        <div class="bundle-products" id="bundleProducts"></div>
+        <aside class="bundle-summary">
+          <div class="eyebrow">Your bundle</div>
+          <h3 style="font-family:Georgia,serif;font-size:31px;font-weight:500;margin:10px 0 20px" id="bundleTitle">Pair Bundle</h3>
+          <div id="bundleChosen"></div>
+          <div class="summary-line"><span>Selected</span><strong id="bundleCount">0 / 2</strong></div>
+          <div class="summary-line"><span>Bundle saving</span><strong id="bundleSaving">RM 4.00</strong></div>
+          <div class="summary-total"><span>Total</span><span id="bundleTotal">RM 0.00</span></div>
+          <button class="btn btn-primary" style="width:100%" id="bundleAddBtn" onclick="addBundleToCart()" disabled>Add Bundle to Bag</button>
+        </aside>
+      </div>
+      <div style="height:90px"></div>
+    </div>
+  </section>
+
+  <!-- CART -->
+  <section id="page-cart" class="page">
+    <div class="container">
+      <div class="cart-layout">
+        <div>
+          <div class="eyebrow">Your order</div>
+          <h1 class="section-title">Your Bag</h1>
+          <div class="cart-list" id="cartList"></div>
+        </div>
+        <aside class="order-summary">
+          <h3 style="font-family:Georgia,serif;font-size:28px;font-weight:500;margin-top:0">Order Summary</h3>
+          <div class="summary-line"><span>Subtotal</span><strong id="cartSubtotal">RM 0.00</strong></div>
+          <div class="summary-line"><span>Voucher</span><strong id="voucherValue">—</strong></div>
+          <div class="field"><label>Voucher Code</label><div style="display:flex;gap:8px"><input id="voucherInput" placeholder="Enter code"><button class="btn btn-secondary" onclick="applyVoucher()">Apply</button></div></div>
+          <div class="summary-total"><span>Total</span><span id="cartTotal">RM 0.00</span></div>
+          <button class="btn btn-primary" style="width:100%" onclick="goCheckout()">Proceed to Checkout</button>
+          <button class="btn btn-secondary" style="width:100%;margin-top:10px" onclick="goPage('shop')">Continue Shopping</button>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHECKOUT -->
+  <section id="page-checkout" class="page">
+    <div class="container">
+      <div class="checkout-layout">
+        <div>
+          <div class="eyebrow">Almost there</div>
+          <h1 class="section-title">Checkout</h1>
+
+          <div class="checkout-card">
+            <h3>Customer Details</h3>
+            <div class="two-col">
+              <div class="field"><label>Full Name</label><input id="coName" placeholder="Your name"></div>
+              <div class="field"><label>Phone Number</label><input id="coPhone" placeholder="01X-XXXXXXX"></div>
+            </div>
+            <div class="field"><label>Email</label><input id="coEmail" type="email" placeholder="you@example.com"></div>
+          </div>
+
+          <div class="checkout-card">
+            <h3>Pickup Details</h3>
+            <div class="two-col">
+              <div class="field"><label>Pickup Date</label><input id="coDate" type="date"></div>
+              <div class="field"><label>Preferred Time</label><select id="coTime"><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option></select></div>
+            </div>
+            <div class="field"><label>Order Notes</label><textarea id="coNotes" rows="3" placeholder="Optional notes for the kitchen"></textarea></div>
+          </div>
+
+          <div class="checkout-card">
+            <h3>QR / Bank Payment</h3>
+            <div class="payment-box">
+              <div>
+                <p style="color:var(--muted);line-height:1.7">Scan the QR or transfer to the account below. After payment, upload your receipt and submit the order. Your order will first appear as <strong>Payment Checking</strong>.</p>
+                <div style="display:grid;gap:8px;margin-top:18px">
+                  <div><strong>Bank:</strong> YOUR BANK NAME</div>
+                  <div><strong>Account Name:</strong> LAYOR DESSERT</div>
+                  <div><strong>Account No.:</strong> 0000 0000 0000</div>
+                </div>
+              </div>
+              <div class="qr-placeholder">
+                <img src="assets/payment/payment-qr.png" alt="Payment QR" onerror="this.style.display='none';this.parentElement.innerHTML='PAYMENT QR<br><small>Replace with your real QR image</small>'">
+              </div>
+            </div>
+            <div class="upload" style="margin-top:20px"><label style="cursor:pointer"><strong>Upload Payment Receipt</strong><br><small style="color:var(--muted)">JPG, PNG or PDF</small><input id="receiptUpload" type="file" accept="image/*,.pdf" style="display:none" onchange="receiptSelected(this)"></label><div id="receiptName" style="margin-top:8px;color:var(--green)"></div></div>
+          </div>
+        </div>
+
+        <aside class="order-summary">
+          <h3 style="font-family:Georgia,serif;font-size:28px;font-weight:500;margin-top:0">Your Order</h3>
+          <div id="checkoutItems"></div>
+          <div class="summary-line"><span>Subtotal</span><strong id="checkoutSubtotal">RM 0.00</strong></div>
+          <div class="summary-line"><span>Discount</span><strong id="checkoutDiscount">RM 0.00</strong></div>
+          <div class="summary-total"><span>Total</span><span id="checkoutTotal">RM 0.00</span></div>
+          <button class="btn btn-primary" style="width:100%" onclick="submitOrder()">I've Paid · Submit Order</button>
+          <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:0">Demo frontend only. Connect this submit action to your backend later so the owner/kitchen receives the order.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACCOUNT -->
+  <section id="page-account" class="page">
+    <div class="account-hero">
+      <div class="container">
+        <div class="eyebrow" style="color:#f3e5d8">LAYOR Rewards</div>
+        <h1 class="section-title">Your desserts, your rewards.</h1>
+        <p class="section-copy" style="color:rgba(255,255,255,.72)">Track orders, collect points and keep your vouchers in one place.</p>
+      </div>
+    </div>
+    <div class="container">
+      <div class="account-grid">
+        <aside class="profile-card">
+          <div class="avatar">L</div>
+          <h3 style="font-family:Georgia,serif;font-size:28px;font-weight:500;margin-bottom:4px">Welcome back</h3>
+          <p style="color:var(--muted);margin-top:0">Member since 2026</p>
+          <div class="points-box"><span style="font-size:12px;letter-spacing:.12em;text-transform:uppercase">Available Points</span><strong>320</strong><small>80 points until your next reward</small></div>
+          <button class="btn btn-secondary" style="width:100%;margin-top:14px">Edit Profile</button>
+        </aside>
+        <div class="account-panel">
+          <div class="tabs"><button class="tab active" onclick="accountTab('orders',this)">Orders</button><button class="tab" onclick="accountTab('vouchers',this)">Vouchers</button><button class="tab" onclick="accountTab('points',this)">Points</button></div>
+          <div id="accountContent"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container footer-grid">
+    <div><div class="footer-brand">LAYOR</div><p style="max-width:430px;line-height:1.7;color:rgba(255,255,255,.62)">Softly layered contemporary desserts, made in Kajang and worth slowing down for.</p></div>
+    <div><div class="footer-title">Visit</div><div class="footer-links"><span>10-G, Jalan Mahkota Residence 3</span><span>Bandar Mahkota Cheras</span><span>43200 Kajang, Selangor</span></div></div>
+    <div><div class="footer-title">Quick Links</div><div class="footer-links"><a href="#" onclick="goPage('shop');return false">Shop</a><a href="#" onclick="goPage('mix');return false">Mix & Match</a><a href="#" onclick="goPage('account');return false">Rewards</a><span>layordessert@gmail.com</span></div></div>
+  </div>
+</footer>
+
+<nav class="mobile-nav">
+  <button class="active" data-page="home" onclick="goPage('home')"><span>⌂</span><span>Home</span></button>
+  <button data-page="shop" onclick="goPage('shop')"><span>◇</span><span>Shop</span></button>
+  <button data-page="mix" onclick="goPage('mix')"><span>＋</span><span>Bundle</span></button>
+  <button data-page="account" onclick="goPage('account')"><span>☆</span><span>Rewards</span></button>
+  <button data-page="cart" onclick="goPage('cart')"><span>⌑</span><span>Bag</span></button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   PRODUCT IMAGE FILES
+   Add up to 3 images per product below.
+   If only 1 exists, keep only 1 filename in the array.
+   ========================================================= */
+const products = [
+  {
+    id:'mmc-strawberry-matcha',
+    category:'Mini Mille Crepe',
+    name:'Strawberry Matcha | 抹茶映莓',
+    price:31.90,
+    desc:'Rich matcha layered with delicate strawberry cream for a balanced, fresh finish.',
+    images:['assets/products/mini-mille-crepe/strawberry-matcha-01.jpg']
+  },
+  {
+    id:'mmc-d24-durian',
+    category:'Mini Mille Crepe',
+    name:'D24 Durian | 金杏榴莲',
+    price:29.90,
+    desc:'Rich D24 durian layered with light cream and soft crepe layers.',
+    images:['assets/products/mini-mille-crepe/d24-durian-01.jpg']
+  },
+  {
+    id:'mc-matcha-nama',
+    category:'Mini Cakes',
+    name:'Matcha Nama | 醇抹生巧',
+    price:24.90,
+    desc:'Rich matcha with silky nama layers, smooth and deeply satisfying.',
+    images:['assets/products/mini-cakes/matcha-nama-01.jpg']
+  },
+  {
+    id:'mc-strawberry-matcha',
+    category:'Mini Cakes',
+    name:'Strawberry Matcha | 抹茶映莓',
+    price:24.90,
+    desc:'Rich matcha balanced with bright strawberry notes in a petite cake.',
+    images:['assets/products/mini-cakes/strawberry-matcha-01.jpg']
+  },
+  {
+    id:'mc-jasmine-matcha',
+    category:'Mini Cakes',
+    name:'Jasmine Matcha | 茉香抹茶',
+    price:24.90,
+    desc:'Delicate jasmine meets rich matcha, unfolding softly layer by layer.',
+    images:['assets/products/mini-cakes/jasmine-matcha-01.jpg']
+  },
+  {
+    id:'mc-d24-durian',
+    category:'Mini Cakes',
+    name:'D24 Durian | 醇香榴莲',
+    price:25.90,
+    desc:'Rich D24 durian layered with light cream in a petite celebration cake.',
+    images:['assets/products/mini-cakes/d24-durian-01.jpg']
+  },
+  {
+    id:'puff-durian-gold',
+    category:'Mini Puff',
+    name:'Durian Gold | 金榴',
+    price:0,
+    desc:'Golden craquelin with rich, fragrant durian cream.',
+    images:['assets/products/mini-puff/durian-gold-01.jpg'],
+    comingSoon:true
+  },
+  {
+    id:'puff-matcha-noir',
+    category:'Mini Puff',
+    name:'Matcha Noir | 墨抹',
+    price:0,
+    desc:'Crisp craquelin with silky matcha diplomat cream.',
+    images:['assets/products/mini-puff/matcha-noir-01.jpg'],
+    comingSoon:true
+  },
+  {
+    id:'puff-hojicha-roast',
+    category:'Mini Puff',
+    name:'Hojicha Roast | 焙香',
+    price:0,
+    desc:'Toasty craquelin with smooth roasted hojicha cream.',
+    images:['assets/products/mini-puff/hojicha-roast-01.jpg'],
+    comingSoon:true
+  },
+  {
+    id:'puff-jasmine-cloud',
+    category:'Mini Puff',
+    name:'Jasmine Cloud | 茉云',
+    price:0,
+    desc:'Delicate craquelin with softly fragrant jasmine cream.',
+    images:['assets/products/mini-puff/jasmine-cloud-01.jpg'],
+    comingSoon:true
+  }
+];
+
+let activeCategory='All';
+let cart=JSON.parse(localStorage.getItem('layor_cart')||'[]');
+let currentProduct=null;
+let detailQty=1;
+let galleryIndex=0;
+let voucherDiscount=0;
+let selectedBundle={size:2,save:4,name:'Pair Bundle',items:[]};
+
+const rm=n=>'RM '+Number(n).toFixed(2);
+const productById=id=>products.find(p=>p.id===id);
+
+function goPage(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const el=document.getElementById('page-'+page); if(el)el.classList.add('active');
+  document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(page==='shop') renderShop();
+  if(page==='cart') renderCart();
+  if(page==='checkout') renderCheckout();
+  if(page==='account') renderAccount('orders');
+}
+
+function shopCategory(cat){activeCategory=cat;goPage('shop');renderFilters();renderShop()}
+
+function renderFilters(){
+  const cats=['All','Mini Mille Crepe','Mini Cakes','Mini Puff'];
+  document.getElementById('filterRow').innerHTML=cats.map(c=>`<button class="filter-chip ${activeCategory===c?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${c}</button>`).join('');
+}
+function setCategory(c){activeCategory=c;renderFilters();renderShop()}
+
+function imageBlock(p,klass=''){
+  const src=p.images?.[0]||'';
+  return `<div class="${klass}" style="position:relative"><img src="${src}" alt="${p.name}" onerror="this.style.display='none'">${klass==='product-media'?`<div class="product-placeholder">L</div>`:''}</div>`;
+}
+
+function productCard(p){
+  return `<article class="product-card">
+    <div class="product-media" onclick="openProduct('${p.id}')">
+      <div class="product-placeholder">L</div>
+      <img src="${p.images[0]}" alt="${p.name}" onload="this.previousElementSibling.style.display='none'" onerror="this.style.display='none'">
+      ${p.comingSoon?'<span class="coming">Coming soon</span>':''}
+    </div>
+    <div class="product-card-body">
+      <div class="product-cat">${p.category}</div>
+      <div class="product-name" onclick="openProduct('${p.id}')" style="cursor:pointer">${p.name}</div>
+      <div class="product-desc">${p.desc}</div>
+      <div class="product-foot"><span class="price">${p.comingSoon?'Coming Soon':rm(p.price)}</span><button class="add-btn" ${p.comingSoon?'disabled':''} onclick="event.stopPropagation();addToCart('${p.id}',1)">+</button></div>
+    </div>
+  </article>`;
+}
+
+function renderFeatured(){
+  const ids=['mmc-strawberry-matcha','mmc-d24-durian','mc-matcha-nama','mc-jasmine-matcha'];
+  document.getElementById('featuredGrid').innerHTML=ids.map(id=>productCard(productById(id))).join('');
+}
+function renderShop(){
+  renderFilters();
+  const q=(document.getElementById('searchInput')?.value||'').toLowerCase();
+  const list=products.filter(p=>(activeCategory==='All'||p.category===activeCategory)&&(!q||`${p.name} ${p.category} ${p.desc}`.toLowerCase().includes(q)));
+  document.getElementById('shopGrid').innerHTML=list.length?list.map(productCard).join(''):'<div class="empty-state" style="grid-column:1/-1">No desserts found.</div>';
+}
+
+function openProduct(id){
+  currentProduct=productById(id); detailQty=1; galleryIndex=0;
+  document.getElementById('detailCategory').textContent=currentProduct.category;
+  document.getElementById('detailName').textContent=currentProduct.name;
+  document.getElementById('detailPrice').textContent=currentProduct.comingSoon?'Coming Soon':rm(currentProduct.price);
+  document.getElementById('detailDesc').textContent=currentProduct.desc;
+  document.getElementById('detailQty').textContent=detailQty;
+  document.getElementById('detailAddBtn').disabled=!!currentProduct.comingSoon;
+  document.getElementById('detailAddBtn').textContent=currentProduct.comingSoon?'Coming Soon':'Add to Bag';
+  renderGallery();goPage('product');
+}
+function changeDetailQty(n){detailQty=Math.max(1,detailQty+n);document.getElementById('detailQty').textContent=detailQty}
+function addCurrentProduct(){if(currentProduct)addToCart(currentProduct.id,detailQty)}
+
+function renderGallery(){
+  const imgs=(currentProduct?.images||[]).slice(0,3);
+  if(!imgs.length)return;
+  galleryIndex=Math.max(0,Math.min(galleryIndex,imgs.length-1));
+  const img=document.getElementById('galleryImage');
+  const fallback=document.getElementById('galleryFallback');
+  img.style.display='block';fallback.style.display='none';img.src=imgs[galleryIndex];
+  img.onerror=()=>{img.style.display='none';fallback.style.display='grid'};
+  document.getElementById('galleryPrev').style.display=imgs.length>1?'block':'none';
+  document.getElementById('galleryNext').style.display=imgs.length>1?'block':'none';
+  document.getElementById('galleryDots').innerHTML=imgs.length>1?imgs.map((_,i)=>`<button class="gallery-dot ${i===galleryIndex?'active':''}" onclick="galleryIndex=${i};renderGallery()"></button>`).join(''):'';
+}
+function galleryMove(n){
+  const len=(currentProduct?.images||[]).slice(0,3).length;if(len<=1)return;
+  galleryIndex=(galleryIndex+n+len)%len;renderGallery();
+}
+let touchStartX=0;
+document.getElementById('galleryStage').addEventListener('touchstart',e=>touchStartX=e.changedTouches[0].clientX,{passive:true});
+document.getElementById('galleryStage').addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-touchStartX;if(Math.abs(dx)>40)galleryMove(dx<0?1:-1)},{passive:true});
+
+function addToCart(id,qty=1){
+  const p=productById(id);if(!p||p.comingSoon)return;
+  const found=cart.find(i=>i.id===id&&!i.bundle);
+  if(found)found.qty+=qty;else cart.push({id,qty});
+  saveCart();toast('Added to bag');
+}
+function saveCart(){localStorage.setItem('layor_cart',JSON.stringify(cart));updateCartBadge()}
+function updateCartBadge(){document.getElementById('cartBadge').textContent=cart.reduce((s,i)=>s+(i.qty||1),0)}
+function cartLineTotal(item){
+  if(item.bundle)return item.total;
+  const p=productById(item.id);return p?p.price*item.qty:0;
+}
+function cartSubtotal(){return cart.reduce((s,i)=>s+cartLineTotal(i),0)}
+
+function renderCart(){
+  const list=document.getElementById('cartList');
+  if(!cart.length){list.innerHTML='<div class="empty-state">Your bag is empty.<br><br><button class="btn btn-primary" onclick="goPage(\'shop\')">Start Shopping</button></div>'}
+  else list.innerHTML=cart.map((item,index)=>{
+    if(item.bundle){return `<div class="cart-item"><div class="cart-thumb">+</div><div class="cart-meta"><h4>${item.name}</h4><small>${item.items.map(x=>productById(x)?.name.split('|')[0].trim()).join(', ')}</small><br><button class="remove-link" onclick="removeCart(${index})">Remove</button></div><div><strong>${rm(item.total)}</strong></div></div>`}
+    const p=productById(item.id);if(!p)return'';
+    return `<div class="cart-item"><div class="cart-thumb"><img src="${p.images[0]}" onerror="this.style.display='none'">L</div><div class="cart-meta"><h4>${p.name}</h4><small>${p.category}</small><div style="margin-top:12px"><div class="qty"><button onclick="cartQty(${index},-1)">−</button><span>${item.qty}</span><button onclick="cartQty(${index},1)">+</button></div></div><button class="remove-link" onclick="removeCart(${index})">Remove</button></div><div><strong>${rm(p.price*item.qty)}</strong></div></div>`
+  }).join('');
+  const sub=cartSubtotal(),total=Math.max(0,sub-voucherDiscount);
+  document.getElementById('cartSubtotal').textContent=rm(sub);
+  document.getElementById('voucherValue').textContent=voucherDiscount?'- '+rm(voucherDiscount):'—';
+  document.getElementById('cartTotal').textContent=rm(total);
+}
+function cartQty(i,n){cart[i].qty=Math.max(1,(cart[i].qty||1)+n);saveCart();renderCart()}
+function removeCart(i){cart.splice(i,1);saveCart();renderCart()}
+function applyVoucher(){
+  const code=document.getElementById('voucherInput').value.trim().toUpperCase();
+  voucherDiscount=code==='LAYOR5'?5:code==='WELCOME10'?cartSubtotal()*.10:0;
+  toast(voucherDiscount?'Voucher applied':'Voucher not recognised');renderCart();
+}
+function goCheckout(){if(!cart.length){toast('Your bag is empty');return}goPage('checkout')}
+
+function renderCheckout(){
+  const wrap=document.getElementById('checkoutItems');
+  wrap.innerHTML=cart.map(item=>{
+    if(item.bundle)return `<div class="summary-line"><span>${item.name}</span><strong>${rm(item.total)}</strong></div>`;
+    const p=productById(item.id);return `<div class="summary-line"><span>${p.name.split('|')[0]} × ${item.qty}</span><strong>${rm(p.price*item.qty)}</strong></div>`;
+  }).join('');
+  const sub=cartSubtotal(),total=Math.max(0,sub-voucherDiscount);
+  document.getElementById('checkoutSubtotal').textContent=rm(sub);
+  document.getElementById('checkoutDiscount').textContent='- '+rm(voucherDiscount);
+  document.getElementById('checkoutTotal').textContent=rm(total);
+}
+function receiptSelected(input){document.getElementById('receiptName').textContent=input.files?.[0]?.name||''}
+function submitOrder(){
+  const name=document.getElementById('coName').value.trim(),phone=document.getElementById('coPhone').value.trim();
+  if(!name||!phone){toast('Please enter your name and phone number');return}
+  const orderNo='LYR'+String(Date.now()).slice(-6);
+  const order={no:orderNo,total:Math.max(0,cartSubtotal()-voucherDiscount),status:'Payment Checking',date:new Date().toLocaleDateString('en-MY')};
+  const orders=JSON.parse(localStorage.getItem('layor_orders')||'[]');orders.unshift(order);localStorage.setItem('layor_orders',JSON.stringify(orders));
+  cart=[];voucherDiscount=0;saveCart();
+  alert(`Order ${orderNo} submitted successfully.\nStatus: Payment Checking\n\nConnect this button to your backend/API later for the real kitchen workflow.`);
+  goPage('account');
+}
+
+const bundles={
+  2:{name:'Pair Bundle',save:4},
+  4:{name:'Sharing Bundle',save:8},
+  6:{name:'Gathering Bundle',save:15}
+};
+function initBundles(){
+  document.getElementById('bundleOptions').innerHTML=[2,4,6].map(n=>`<button class="bundle-option ${n===4?'popular':''}" onclick="chooseBundle(${n})">${n===4?'<span class="ribbon">Most popular</span>':''}<div class="eyebrow">Choose any ${n}</div><h3>${bundles[n].name}</h3><p style="color:var(--muted)">Save RM ${bundles[n].save}</p></button>`).join('');
+  renderBundleProducts();renderBundleSummary();
+}
+function chooseBundle(size){selectedBundle={size,save:bundles[size].save,name:bundles[size].name,items:[]};renderBundleSummary();toast(`${bundles[size].name} selected`)}
+function renderBundleProducts(){
+  const available=products.filter(p=>!p.comingSoon);
+  document.getElementById('bundleProducts').innerHTML=available.map(p=>`<div class="bundle-mini"><div class="bundle-mini-thumb"><img src="${p.images[0]}" onerror="this.style.display='none'">L</div><div><strong>${p.name.split('|')[0]}</strong><div style="font-size:12px;color:var(--muted);margin-top:4px">${rm(p.price)}</div></div><button class="add-btn" onclick="bundlePick('${p.id}')">+</button></div>`).join('');
+}
+function bundlePick(id){
+  if(selectedBundle.items.length>=selectedBundle.size){toast(`You can choose ${selectedBundle.size} items`);return}
+  selectedBundle.items.push(id);renderBundleSummary();
+}
+function removeBundleItem(i){selectedBundle.items.splice(i,1);renderBundleSummary()}
+function renderBundleSummary(){
+  document.getElementById('bundleTitle').textContent=selectedBundle.name;
+  document.getElementById('bundleCount').textContent=`${selectedBundle.items.length} / ${selectedBundle.size}`;
+  document.getElementById('bundleSaving').textContent=rm(selectedBundle.save);
+  const raw=selectedBundle.items.reduce((s,id)=>s+(productById(id)?.price||0),0),total=Math.max(0,raw-selectedBundle.save);
+  document.getElementById('bundleTotal').textContent=rm(total);
+  document.getElementById('bundleChosen').innerHTML=selectedBundle.items.length?selectedBundle.items.map((id,i)=>`<div class="summary-line"><span>${productById(id).name.split('|')[0]}</span><button class="remove-link" onclick="removeBundleItem(${i})">Remove</button></div>`).join(''):'<p style="color:var(--muted);font-size:14px">Choose your desserts from the list.</p>';
+  document.getElementById('bundleAddBtn').disabled=selectedBundle.items.length!==selectedBundle.size;
+}
+function addBundleToCart(){
+  const raw=selectedBundle.items.reduce((s,id)=>s+(productById(id)?.price||0),0),total=Math.max(0,raw-selectedBundle.save);
+  cart.push({bundle:true,name:selectedBundle.name,items:[...selectedBundle.items],qty:1,total});saveCart();toast('Bundle added to bag');selectedBundle.items=[];renderBundleSummary();
+}
+
+function renderAccount(tab='orders'){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(tab==='orders'&&i===0)||(tab==='vouchers'&&i===1)||(tab==='points'&&i===2)));
+  const box=document.getElementById('accountContent');
+  if(tab==='orders'){
+    const orders=JSON.parse(localStorage.getItem('layor_orders')||'[]');
+    box.innerHTML=orders.length?orders.map(o=>`<div class="order-card"><div style="display:flex;justify-content:space-between;gap:16px"><div><strong>${o.no}</strong><div style="font-size:13px;color:var(--muted);margin-top:5px">${o.date}</div></div><div style="text-align:right"><span class="status">${o.status}</span><div style="margin-top:8px"><strong>${rm(o.total)}</strong></div></div></div></div>`).join(''):`<div class="order-card"><div style="display:flex;justify-content:space-between;gap:16px"><div><strong>LYR240921</strong><div style="font-size:13px;color:var(--muted);margin-top:5px">Demo order</div></div><div style="text-align:right"><span class="status">Completed</span><div style="margin-top:8px"><strong>RM 56.80</strong></div></div></div></div>`;
+  }
+  if(tab==='vouchers')box.innerHTML=`<div class="voucher-card"><div><strong>WELCOME10</strong><div style="font-size:13px;color:var(--muted);margin-top:5px">10% off · minimum spend RM50</div></div><button class="btn btn-secondary" onclick="goPage('cart')">Use</button></div><div class="voucher-card"><div><strong>RM5 REWARD</strong><div style="font-size:13px;color:var(--muted);margin-top:5px">Redeem with 200 points</div></div><button class="btn btn-secondary">Redeem</button></div>`;
+  if(tab==='points')box.innerHTML=`<h3 style="font-family:Georgia,serif;font-size:28px;font-weight:500">Points Activity</h3><div class="summary-line"><span>Order LYR240921</span><strong>+56 pts</strong></div><div class="summary-line"><span>Welcome reward</span><strong>+100 pts</strong></div><div class="summary-line"><span>Current balance</span><strong>320 pts</strong></div>`;
+}
+function accountTab(tab,btn){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');renderAccount(tab)}
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>t.classList.remove('show'),1800)}
+
+window.addEventListener('load',()=>{
+  renderFeatured();renderFilters();renderShop();initBundles();updateCartBadge();renderAccount('orders');
+  setTimeout(()=>document.getElementById('loader').classList.add('hide'),2200);
+});
+</script>
+</body>
+</html>
